@@ -116,7 +116,7 @@ void UBX_Port::print_packet(const ubx_packet_t *packet)
 {
     printf("<%02x, %02x> ", (packet->id)&0xFF, (packet->id)>>8);
     printf("(% 3i): ", packet->len);
-    for(int i=0; i<packet.len; i++)
+    for(int i=0; i<packet->len; i++)
         printf("%02x ", packet->data[i]);
     printf("\n");
 }
@@ -125,7 +125,7 @@ void UBX_Port::print_packet(const ubx_packet_t *packet)
 bool UBX_Port::read_packet(ubx_packet_t *packet)
 {
     uint8_t cka=0,ckb=0;
-    uint8_t buffer[256];
+    uint8_t buffer[MAX_DATA_LEN];
     int n;
 
     n = read(_serial_fd, buffer, 4);
@@ -134,10 +134,10 @@ bool UBX_Port::read_packet(ubx_packet_t *packet)
 
     int data_len = buffer[2]+(buffer[3]<<8);
     if(data_len>MAX_DATA_LEN) {
+        printf("UBX_READ error: invalid data lenght <");
         for(int i=0; i<4; i++)
             printf("%02X ", buffer[i]);
-        printf("\n");
-        printf("UBX_READ error: invalid data lenght\n");
+        printf(">\n");
         return false;
     }
 
@@ -171,7 +171,7 @@ bool UBX_Port::read_packet(ubx_packet_t *packet)
 void UBX_Port::write_packet(const ubx_packet_t *packet)
 {
     uint16_t data_len = packet->len;
-    uint8_t buffer[256];
+    uint8_t buffer[MAX_DATA_LEN];
     uint8_t cka=0;
     uint8_t ckb=0;
 
@@ -211,12 +211,12 @@ bool UBX_Port::wait_sync()
 bool UBX_Port::wait_sync_timeout(int timeout_ms)
 {
     int time_0 = get_time_us();
-  
+
     do {
         if(wait_sync()) return true;
     }
     while( (get_time_us()-time_0)<timeout_ms*1000);
-    if(debug)
+    if(_debug)
         printf("timeout = %i\n", get_time_us()-time_0);
     return false;
 }

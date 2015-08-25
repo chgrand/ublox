@@ -13,17 +13,20 @@ set(LIBRARY_OUTPUT_PATH lib/)
 #include_directories("/opt/include/bullet/")
 #link_directories("/opt/lib")
 
-#add_library(dynamixel 
-#	src/dynamixel.cpp 
-#	src/SerialPort.cpp)
-
+add_library(gnss
+	src/gps_time.cpp)
 
 include_directories(src)
 add_executable(ublox 
   src/ubx_protocol.cpp
   src/ublox_rover.cpp)
 
-#target_link_libraries(test dynamixel)
+add_executable(ublox_base 
+  src/ubx_protocol.cpp
+  src/ublox_base.cpp)
+
+target_link_libraries(ublox_base
+  gnss)
 
 #set_target_properties(hylos3 PROPERTIES COMPILE_FLAGS "-std=gnu++11" LINK_FLAGS "") #-std=c++11 or -std=gnu++11
 

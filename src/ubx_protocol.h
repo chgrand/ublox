@@ -3,7 +3,7 @@
 #ifndef UBX_PROTOCOL_H
 #define UBX_PROTOCOL_H
 
-#define MAX_DATA_LEN 256
+#define MAX_DATA_LEN 1024
 
 #define protoMask_RTCM 0x04
 #define protoMask_NMEA 0x02
@@ -18,8 +18,7 @@ typedef struct
     uint16_t id;
     uint16_t len;
     uint8_t  data[MAX_DATA_LEN];
-}
-    ubx_packet_t;
+} ubx_packet_t;
 
 namespace ubx
 {
@@ -32,6 +31,14 @@ namespace ubx
 
     const static uint16_t NAV_POSECEF = 0x0101;
     const static uint16_t NAV_POSLLH  = 0x0201;
+    const static uint16_t NAV_STATUS  = 0x0301;
+    const static uint16_t NAV_SOL     = 0x0601;
+    const static uint16_t NAV_CLOCK   = 0x2201;
+    const static uint16_t NAV_SVINFO  = 0x3001;
+    const static uint16_t NAV_ORB     = 0x3401;
+    const static uint16_t NAV_SAT     = 0x3501;
+
+
 
     inline void U4_write(uint8_t* buf, uint32_t value) { memcpy(buf, &value, 4);};
     inline void U2_write(uint8_t* buf, uint16_t value) { memcpy(buf, &value, 2);};
