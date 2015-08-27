@@ -28,6 +28,8 @@ namespace ubx
     const static uint16_t CFG_RATE = 0x0806;
     const static uint16_t CFG_NMEA = 0x1706;
     const static uint16_t CFG_NAV5 = 0x2406;
+    const static uint16_t CFG_RXM  = 0x1106;
+    const static uint16_t CFG_PM2  = 0x3B06;
 
     const static uint16_t NAV_POSECEF = 0x0101;
     const static uint16_t NAV_POSLLH  = 0x0201;
@@ -60,7 +62,9 @@ namespace ubx
 class UBX_Port
 {
 public:
-    UBX_Port() : _connected(false), _debug(false) {};
+    UBX_Port() :
+        _connected(false), _timeout(100),
+        _debug(false), _raw_print(false) {};
     ~UBX_Port();
 
 
@@ -70,23 +74,27 @@ public:
     bool isConnected() {return _connected;}
     void set_baudrate(speed_t speed);
     void set_debug(bool flag) {_debug = flag;}
- 
+    void set_raw_print(bool flag) {_raw_print = flag;}
+    void set_timeout(int tms) {_timeout = tms;}
+
     // low-level function read/write packet
     bool read_packet(ubx_packet_t *packet);
     void write_packet(const ubx_packet_t *packet);
-    bool wait_sync();
-    bool wait_sync_timeout(int timeout_ms);
-    bool wait_ack();
+    //bool wait_sync();
     void print_packet(const ubx_packet_t *packet);
+    bool wait_ack();
 
     // hi-level function
-    bool poll_message(ubx_packet_t *packet);
-    bool write_message(ubx_packet_t *packet);
+    //bool poll_packet(ubx_packet_t *packet);
+    //bool write_message(ubx_packet_t *packet);
 
 private:
+    bool read_serial(uint8_t *buffer, int n_bytes);   // read data on serial port with timeout
     int _serial_fd;
     bool _connected;
     bool _debug;
+    bool _raw_print;
+    int  _timeout;        // serial read timeout in ms
 };
 
 #endif

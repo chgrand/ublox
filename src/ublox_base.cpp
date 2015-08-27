@@ -1,17 +1,17 @@
-#include <iostream>
-#include <string>
-using namespace std;
-
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
 #include <string.h>
+#include <signal.h>
 #include <math.h>
 #include <termios.h>
 #include "ubx_protocol.h"
 #include "gps_time.h"
+
+#include <iostream>
+#include <string>
+using namespace std;
 
 namespace STATE
 {
@@ -118,64 +118,107 @@ void set_CFG_MSG(uint16_t id, uint8_t cycle)
 {
     ubx_packet_t packet;
     packet.id    = ubx::CFG_MSG;
-    packet.len  = 3;
-    ubx::U2_write(packet.data, id);  // Position in ECEF
-    packet.data[2] = cycle;          // At each cycle
-    ublox.write_message(&packet);
+    packet.len  = 8;
+    memset(packet.data, 0, 8);
+    ubx::U2_write(packet.data, id);
+    packet.data[5] = cycle;
+    ublox.write_packet(&packet);
+    ublox.wait_ack();                             //only for CFG message
 }
+
+
+bool poll_packet(uint16_t id)
+{
+    ubx_packet_t packet;
+    packet.id    = id;
+    packet.len  = 0;
+    ublox.write_packet(&packet);
+    return ublox.read_packet(&packet);
+}
+
 
 //-----------------------------------------------------------------------------
 bool configure()
 {
+    // Configure Serial Port
     if(!ublox.connect("/dev/ttyACM0")) {
         printf("Error cannot connect GPS on port /dev/ttyACM0\n");
         return false;
     }
     ublox.set_baudrate(B115200);
+    ublox.set_timeout(250);
 
+    // Use UBX protocol to configure Ublox
     ubx_packet_t packet;
     ublox.set_debug(true);
 
-    // set baudrate (Not necessary on usb port)
-    uint32_t baudrate=115200;
+    // Configure CFG_PRT
+    // -----------------
+    cout << "CFG_PRT" << endl;
     uint32_t mode = (3<<6)+(4<<9)+(0<<12);
+    packet.id = ubx::CFG_PRT;
+    packet.len = 0;
+    ublox.write_packet(&packet);
+    if(!ublox.read_packet(&packet)) return false;
+    ublox.wait_ack();                             //only for CFG message
 
-    packet.id    = ubx::CFG_PRT;
-    ublox.poll_message(&packet);
     ubx::U4_write(packet.data+4, mode);
-    ubx::U4_write(packet.data+8, baudrate);
-    packet.data[14] = protoMask_UBX;      // desactivate NMEA output
-    ublox.write_message(&packet);
+    //ubx::U4_write(packet.data+8, 115200);
+    packet.data[14] = protoMask_UBX;              // desactivate NMEA output
+    ublox.write_packet(&packet);
+    ublox.wait_ack();                             //only for CFG message
 
-    // set GNSS freq = 10hz
+    /*
+    // Configure GNSS freq = 2hz
+    cout << "CFG_RATE" << endl;
     packet.id   = ubx::CFG_RATE;
     packet.len  = 6;
     ubx::U2_write(packet.data+0, 500); // Gnss measurement rate in ms
     ubx::U2_write(packet.data+2, 1);   // Nav. Rate, in number of meas. cycles
     ubx::U2_write(packet.data+4, 1);   // Ref. time (0: UTC time, 1: GPS time)
-    ublox.write_message(&packet);
+    ublox.write_packet(&packet);
+    ublox.wait_ack();                             //only for CFG message
 
-    // Set GNSS Nav properties
-    packet.id    = ubx::CFG_NAV5;
-    ublox.poll_message(&packet);
-    packet.data[2] = 2;              // dynModel = 2 (stationnary)
-    ublox.write_message(&packet);
-
-    printf("Poll NAV_SAT =============\n");
-    packet.id    = ubx::RXM_RAWX;
+    // Configure GNSS Nav properties
+    cout << "CFG_NAV5" << endl;
+    packet.id = ubx::CFG_NAV5;
     packet.len = 0;
-    ublox.poll_message(&packet);
+    ublox.write_packet(&packet);     // Poll CFG DATA
+    ublox.read_packet(&packet);     // Poll CFG DATA
+    ublox.wait_ack();                //only for CFG message
+    packet.data[2] = 2;              // set DynModel = 2 (stationnary)
+    ublox.write_packet(&packet);
+    ublox.wait_ack();                //only for CFG message
+    */
+    cout << "CFG_RXM" << endl;
+    packet.id = ubx::CFG_RXM;
+    packet.len = 0;
+    ublox.write_packet(&packet);     // Poll CFG DATA
+    ublox.read_packet(&packet);     // Poll CFG DATA
+    ublox.wait_ack();                //only for CFG message
 
-/*
+    cout << "CFG_PM2" << endl;
+    packet.id = ubx::CFG_PM2;
+    packet.len = 0;
+    ublox.write_packet(&packet);     // Poll CFG DATA
+    ublox.read_packet(&packet);     // Poll CFG DATA
+    ublox.wait_ack();                //only for CFG message
+
+
+
+    cout << "CFG_MSG" << endl;
+
     // Select active UBX_MSG
-    set_CFG_MSG(ubx::NAV_SOL, 1);
-    set_CFG_MSG(ubx::NAV_POSECEF, 1);
-    set_CFG_MSG(ubx::NAV_POSLLH, 1);
-    set_CFG_MSG(ubx::MGA_GPS, 1);
-*/
+    //set_CFG_MSG(ubx::NAV_SAT, 1);
+    //set_CFG_MSG(ubx::NAV_SOL, 1);
+    //set_CFG_MSG(ubx::NAV_POSECEF, 1);
+    set_CFG_MSG(ubx::RXM_RAWX, 1);
+    //set_CFG_MSG(ubx::NAV_POSLLH, 1);
 
     ublox.set_debug(false);
 
+
+    //ublox.set_raw_print(true);
     return true;
 
 }
@@ -188,13 +231,10 @@ int read_data()
     double fTow;
     int version;
 
-    if(!ublox.wait_sync_timeout(10)) // 10ms timeout
-        return -1;
-
     if(!ublox.read_packet(&packet))
         return -1;
 
-    printf("Recv packet with id = %04x ", packet.id);
+    printf("\nRecv packet with id = %04x ", packet.id);
     switch(packet.id) {
     case ubx::MGA_GPS:
         printf("MGA_GPS\n");
@@ -262,8 +302,13 @@ int read_data()
     }
     break;
 
+    case ubx::RXM_RAWX: // get ephemerid data
+        printf("RXM_RAWX\n");
+        break;
+        
     default:
-        printf("Unknown id = %0x4\n", packet.id);
+        printf("Unknown id = %0x4", packet.id);
+        cout << endl;
         return -1;
     }
     return packet.id;
@@ -279,6 +324,7 @@ bool update()
     {
     case STATE::INIT:
         message_id = read_data();
+        break;
         if(message_id==ubx::NAV_SOL)
         {
             /*
@@ -322,15 +368,38 @@ bool update()
     }
 }
 
+bool STOP;
+
+void sig_handler(int signo)
+{
+  if (signo == SIGINT)
+      STOP=true;
+}
+
 //-----------------------------------------------------------------------------
 int main(int argc, char **argv)
 {
     if(!configure())
         return -1;
 
+    STOP = false;
+    signal(SIGINT, sig_handler);
     state = STATE::INIT;
-    while(1)
+    //ublox.set_debug(true);
+    while(!STOP)
+    {
+        /*
+        cout << "Poll NAV_SAT ";
+        if(poll_packet(ubx::NAV_SAT))
+            cout << "[OK]" << endl;
+        else
+            cout << "[Err]" << endl;
+        //poll_packet(ubx::CFG_MSG);
+        usleep(1000e3);
+        */
         update();
+    }
 
+    cout << "End" << endl;
     return 0;
 }
