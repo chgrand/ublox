@@ -38,7 +38,8 @@ namespace ubx
     const static uint16_t NAV_ORB     = 0x3401;
     const static uint16_t NAV_SAT     = 0x3501;
 
-
+    const static uint16_t MGA_GPS     = 0x0013;
+    const static uint16_t RXM_RAWX    = 0x1502;
 
     inline void U4_write(uint8_t* buf, uint32_t value) { memcpy(buf, &value, 4);};
     inline void U2_write(uint8_t* buf, uint16_t value) { memcpy(buf, &value, 2);};

@@ -114,6 +114,7 @@ void UBX_Port::set_baudrate(speed_t speed)
 //-----------------------------------------------------------------------------
 void UBX_Port::print_packet(const ubx_packet_t *packet)
 {
+    //printf("%04x ", packet->id);
     printf("<%02x, %02x> ", (packet->id)&0xFF, (packet->id)>>8);
     printf("(% 3i): ", packet->len);
     for(int i=0; i<packet->len; i++)
@@ -237,8 +238,8 @@ bool UBX_Port::poll_message(ubx_packet_t *packet)
 {
     packet->len=0;
     write_packet(packet);
-    if(!wait_sync_timeout(10)) return false;
-    read_packet(packet); 
+    if(!wait_sync_timeout(1000)) return false;
+    read_packet(packet);
     return wait_ack();
 }
 

@@ -1,5 +1,6 @@
 #include <math.h>
 #include <stdio.h>
+#include <string>
 #include "gps_time.h"
 
 const static int gps_t0[]     = {1980,1, 6,0,0,0}; /* gps time reference */
@@ -47,6 +48,14 @@ void date2str(char *buf, const int date[])
 {
     sprintf(buf, "% 4i-%02i-%02i % 2i:%02i:%02i",
             date[0], date[1], date[2], date[3], date[4], date[5]);
+}
+
+std::string date2string(const int date[])
+{
+    char buf[218];
+    sprintf(buf, "% 4i-%02i-%02i % 2i:%02i:%02i",
+            date[0], date[1], date[2], date[3], date[4], date[5]);
+    return std::string(buf);
 }
 
 void gps2epoch(gps_time_t &time, int week, double tow)
