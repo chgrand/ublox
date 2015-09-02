@@ -17,9 +17,9 @@ add_library(gnss
 	src/gps_time.cpp)
 
 include_directories(src)
-add_executable(ublox 
-  src/ubx_protocol.cpp
-  src/ublox_rover.cpp)
+# add_executable(ublox 
+#   src/ubx_protocol.cpp
+#   src/ublox_rover.cpp)
 
 add_executable(ublox_base 
   src/ubx_protocol.cpp
